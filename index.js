@@ -92,16 +92,36 @@ function getReplies(username) {
     // speak the most recent replies
     // ask user if they want to hear more
     
-    disqus.request('users/listActivity', { user : 'username:'+username }, function(data) {
+    // https://disqus.com/home/inbox/ > timelines/activities
+    // this endpoint can be used for any access_token athenticated user with `admin` permissions
+    
+    
+var data,
+          text,
+          card,
+          liveData,
+          simpleUsername = username /* day.toISOString().split('T')[0];*/
+
+    disqus.request('timelines/activities', { type : 'notifications', index : 'replies', routingVersion : 12, limit : 10  }, function(data) {
       if (data.error || data.statusCode >= 400 || !data) {
         console.error('Something went wrong... 🙈', data.error);
         return reject('Something went wrong with getting Discuss data!');
       } else {
-        console.log('🍔',data);
+        data = JSON.parse(data);
       }
       
-      var data, text, card,
-          simpleUsername = username /* day.toISOString().split('T')[0];*/
+      // TODO: Response is messed up
+      
+      liveData = {
+        username: simpleUsername,
+        replyComment: "wat",
+        replyDate: "Sunday at 4:30pm",
+        replyVoteCount: "2 upvotes and 1 downvote",
+        // Actual data from request with fixture object key, yay
+        replyThreadTitle: data.response.objects["forums.Thread?id=6256272111"].clean_title
+      };
+      
+      console.log("🙌",liveData);
       
       // fixtures
       data = {
@@ -112,7 +132,7 @@ function getReplies(username) {
         replyThreadTitle: "10 facts you wont believe about cats."
       };
       
-      text = getRepliesText(data);
+      text = getRepliesText(liveData);
 
       resolve(text);
     });
