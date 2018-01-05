@@ -1,4 +1,6 @@
-# Alexa Weather Forecast Skill
+# Alexa + Disqus Skill
+
+![](https://cdn.glitch.com/1ebaebbc-a5e0-4b7c-a15a-ebaa39fa64ef%2Fpamlexa_logo_definitely_not_copyrighted.png)
 
 This project demonstrates a full, working Alexa skill + Disqus so that you can understand how to build your own - no Amazon Echo required!
 
