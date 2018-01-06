@@ -27,11 +27,10 @@ app.set("view engine", "ejs");
 
 alexaApp.launch(function(request, response) {
   console.log("App launched");
-  response.say('I can give you some comment replies<break time="500ms"/> but first, log into the app and sign in with Discuss');
+  response.say('Hi there, I\'m Pam, ask me to read your replies.');
 });
 
 // Intent #2 - Replies
-//Checks if a username was supplied or not and sends the appropriate response
 alexaApp.intent("Replies", {
     "slots": { "USERNAME": "LIST_OF_USERNAMES" },
     "utterances": [
@@ -63,9 +62,9 @@ alexaApp.intent("Replies", {
             response.say(err);
           });
     } else {
-      // If the requester didn't specify a date/day
+      // If the requester didn't specify a username
       console.log('Responding to replies request with no username');
-      response.say('I can give you some comment replies<break time="500ms"/> but I need to know your Discuss username!');
+      response.say('I can give you some comment replies<break time="500ms"/> but I need to know your Discuss username first!');
     }
   }
 );
@@ -78,29 +77,22 @@ function getReplies(username) {
       //return reject('Invalid usernames for Discuss replies!');
     //}
     
-    // fixture
+    // variable set for now until alexa + disqus oauth stuff is set up
     username = "iamfrancisyo"
     
-    // Notes
-    // Method for building replies information:
-    // check if alexa ID exists
-    // get disqus username from user via alexa input or get existing username if it exists
-    // store username + alexa ID to simple database
-    // GET /users/listActivity/ + include: replies (disqus api)
-      // could maybe use timelines/activities if I can figure out how to use that
-    // map object of replies + article titles + reply author display name -> object used for speech output
-    // speak the most recent replies
-    // ask user if they want to hear more
     
-    // https://disqus.com/home/inbox/ > timelines/activities
-    // this endpoint can be used for any access_token athenticated user with `admin` permissions
+    // GET timelines/activities
+    // count # of unread reply notifications
+    // map object of replies to speech output
+    // speak the first most recent reply
+    // use Alexa dialog model to read multiple replies (ask user if they want to hear more)
     
-    
-var data,
-          text,
-          card,
-          liveData,
-          simpleUsername = username /* day.toISOString().split('T')[0];*/
+    var data,
+        text,
+        card,
+        replySpeechData,
+        unreadObjects = [],
+        simpleUsername = username /* day.toISOString().split('T')[0];*/
 
     disqus.request('timelines/activities', { type : 'notifications', index : 'replies', routingVersion : 12, limit : 10  }, function(data) {
       if (data.error || data.statusCode >= 400 || !data) {
@@ -110,20 +102,38 @@ var data,
         data = JSON.parse(data);
       }
       
-      // TODO: Response is messed up
+      function getUnreadObjects(item) {
+        console.log("⎏",item.items["0"].type);
+        console.log("unread",item.items["0"].isUnread);
+        if (item.items["0"].type === "RegisteredUserSubmitPost" && item.items["0"].isUnread) {
+          unreadObjects.push(item.items["0"].object);
+        }
+      }
       
-      liveData = {
+      console.log(unreadObjects)
+      
+      data.response.activities.forEach(getUnreadObjects);
+      
+      console.log(unreadObjects)
+      
+      // Check if there are unread notifications, return the activity or object key
+      // if no unread notification resolve with OkBye text condition in getRepliesText()
+      
+      // With the correct key, populate replySpeechData object with correct info
+      
+      replySpeechData = {
         username: simpleUsername,
-        replyComment: "wat",
+        replyUsername: data.response.objects[unreadObjects[0]].author.username,
+        replyComment: data.response.objects[unreadObjects[0]].raw_message,
         replyDate: "Sunday at 4:30pm",
         replyVoteCount: "2 upvotes and 1 downvote",
         // Actual data from request with fixture object key, yay
-        replyThreadTitle: data.response.objects["forums.Thread?id=6256272111"].clean_title
+        replyThreadTitle: data.response.objects[data.response.objects[unreadObjects[0]].thread].clean_title
       };
       
-      console.log("🙌",liveData);
+      console.log("🙌",replySpeechData);
       
-      // fixtures
+      // fixtures for testing getRepliesText()
       data = {
         username: simpleUsername,
         replyComment: "quite interesting",
@@ -132,7 +142,7 @@ var data,
         replyThreadTitle: "10 facts you wont believe about cats."
       };
       
-      text = getRepliesText(liveData);
+      text = getRepliesText(replySpeechData);
 
       resolve(text);
     });
@@ -142,11 +152,13 @@ var data,
 // Function #2 - Replies
 // Converts the Disqus replies data into an understandable text string
 function getRepliesText(data) {
-  // set a variale that we'll change based on what is inside data, for example if contains special characters strip, if an image say so.
+  // set a variale that we'll change based on what is inside data,
+  // for example if contains special characters strip, if an image say so.
+  // If the comment is too long, truncate.
   var reply, conditions;
   
-  reply = "On the article " + "<prosody rate='fast'>" + data.replyThreadTitle + "</prosody>" +
-    ", PepBoy replied to you: " + "\"" + data.replyComment + "\"";
+  reply = "On the article, " + "\"" + data.replyThreadTitle + "\"" +
+    ", "+data.replyUsername+" replied to you: " + "\"<prosody pitch='low'>" + data.replyComment + "</prosody>\"";
 
   return reply;
 }
